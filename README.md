@@ -61,10 +61,14 @@ curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-1&message=W
 
 # Different conversationId = a different "user" with zero shared history
 curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-2&message=What+is+my+name?"
+
+# Proof point: read straight from HSQLDB, bypassing the model entirely
+curl "http://localhost:8080/api/chat/memory/history?conversationId=user-1"
+curl "http://localhost:8080/api/chat/memory/history?conversationId=user-2"
 ```
-Talk point: open `http://localhost:8080/h2-console` and show the
-`SPRING_AI_CHAT_MEMORY` table rows scoped by `conversation_id` — this is the
-proof point that memory is durable and per-user.
+Talk point: `/history` hits the database directly via `JdbcChatMemoryRepository`, so
+you can show `user-1`'s history containing "Vaman" while `user-2`'s is empty of
+it — durable, per-conversation storage, not just the model "remembering."
 
 **4. Web search tool**
 ```bash
@@ -108,13 +112,20 @@ controller/ One thin REST controller per demo point
 resources/docs/leave-policy.md  Sample EMS document for RAG
 ```
 
-## 7. Known gaps to close before presenting live
+## 7. Known gaps closed while building this
 
+- **H2 was originally used for JDBC chat memory storage and does not work** —
+  Spring AI's JDBC chat memory module only ships schema scripts for
+  PostgreSQL, MySQL/MariaDB, SQL Server, HSQLDB, and Oracle. H2 isn't one of
+  them, so it fails at startup with "No schema scripts found". This project
+  now uses **HSQLDB** instead, which is officially supported and just as easy
+  to run locally as a file-based embedded DB — no separate install needed.
 - Pin exact Spring AI artifact versions against the current Spring AI BOM
-  (`1.0.0` used here) — Spring AI's API moved fast through 2025; re-run
-  `mvn clean install` well before the call to catch any drift, since this
-  was scaffolded without internet access to Maven Central to verify.
-- Swap the H2 file datastore for Postgres/MySQL if you want to demo a more
+  (`1.0.0` used here) — Spring AI's package structure moved multiple times
+  through its 1.0.0 milestones (e.g. `QuestionAnswerAdvisor` moved into
+  `org.springframework.ai.chat.client.advisor.vectorstore` and its own
+  `spring-ai-advisors-vector-store` dependency in the GA release).
+- Swap HSQLDB for Postgres/MySQL if you want to demo a more
   production-realistic JDBC memory backend.
 - Add a second sample document (e.g. IT policy) to make the RAG demo show
   retrieval *selecting the right document*, not just answering from the only

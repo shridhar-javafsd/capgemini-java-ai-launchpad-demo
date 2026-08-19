@@ -1,10 +1,14 @@
 package com.launchpad.demo.controller;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
+import org.springframework.ai.chat.messages.Message;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import java.util.List;
 
 import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
 
@@ -21,22 +25,27 @@ import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
  *   curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=user-1&message=My+name+is+Vaman"
  *   curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=user-1&message=What+is+my+name?"
  *
- * JDBC example (history survives restart, query the H2 console to prove it):
+ * JDBC example (history survives restart, proven via the /history endpoint below):
  *   curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-1&message=My+name+is+Vaman"
  *   curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-2&message=What+is+my+name?"
  *   (user-2 gets no memory of "Vaman" - separate conversation)
+ *   curl "http://localhost:8080/api/chat/memory/history?conversationId=user-1"
+ *   curl "http://localhost:8080/api/chat/memory/history?conversationId=user-2"
  */
 @RestController
 public class MemoryChatController {
 
     private final ChatClient inMemoryChatClient;
     private final ChatClient jdbcChatClient;
+    private final JdbcChatMemoryRepository jdbcChatMemoryRepository;
 
     public MemoryChatController(
             @Qualifier("inMemoryChatClient") ChatClient inMemoryChatClient,
-            @Qualifier("jdbcChatClient") ChatClient jdbcChatClient) {
+            @Qualifier("jdbcChatClient") ChatClient jdbcChatClient,
+            JdbcChatMemoryRepository jdbcChatMemoryRepository) {
         this.inMemoryChatClient = inMemoryChatClient;
         this.jdbcChatClient = jdbcChatClient;
+        this.jdbcChatMemoryRepository = jdbcChatMemoryRepository;
     }
 
     @GetMapping("/api/chat/memory/inmemory")
@@ -56,4 +65,16 @@ public class MemoryChatController {
                 .call()
                 .content();
     }
+
+    /**
+     * Live proof point for the demo: reads straight from HSQLDB, bypassing the
+     * model entirely, to show the persisted, conversationId-scoped rows.
+     */
+    @GetMapping("/api/chat/memory/history")
+    public List<String> history(@RequestParam String conversationId) {
+        return jdbcChatMemoryRepository.findByConversationId(conversationId).stream()
+                .map(Message::getText)
+                .toList();
+    }
 }
+

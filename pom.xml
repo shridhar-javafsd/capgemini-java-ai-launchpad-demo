@@ -54,20 +54,29 @@
             <artifactId>spring-ai-starter-vector-store-chroma</artifactId>
         </dependency>
 
+        <!-- Spring AI: QuestionAnswerAdvisor / VectorStoreChatMemoryAdvisor now live in their own module (1.0.0 GA) -->
+        <dependency>
+            <groupId>org.springframework.ai</groupId>
+            <artifactId>spring-ai-advisors-vector-store</artifactId>
+        </dependency>
+
         <!-- Spring AI: JDBC-backed chat memory -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
         </dependency>
 
-        <!-- JDBC + embedded DB for chat memory storage (swap for Postgres/MySQL in real use) -->
+        <!-- JDBC + embedded DB for chat memory storage (swap for Postgres/MySQL in real use).
+             NOTE: H2 is NOT one of Spring AI's officially supported JDBC chat-memory dialects
+             (only PostgreSQL, MySQL/MariaDB, SQL Server, HSQLDB, Oracle ship a schema script) -
+             HSQLDB is used here instead for that reason. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
         <dependency>
-            <groupId>com.h2database</groupId>
-            <artifactId>h2</artifactId>
+            <groupId>org.hsqldb</groupId>
+            <artifactId>hsqldb</artifactId>
             <scope>runtime</scope>
         </dependency>
 
