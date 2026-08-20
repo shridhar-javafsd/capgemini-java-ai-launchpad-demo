@@ -7,11 +7,15 @@ spring:
 
   ai:
     openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
       api-key: ${OPENAI_API_KEY}
       chat:
         options:
-          model: gpt-4o-mini
+          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
           temperature: 0.4
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 
   # Embedded HSQLDB, used only to persist JDBC-backed chat memory.
   datasource:
