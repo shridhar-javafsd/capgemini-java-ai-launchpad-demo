@@ -15,8 +15,6 @@
     <artifactId>java-ai-launchpad-demo</artifactId>
     <version>1.0.0</version>
     <name>java-ai-launchpad-demo</name>
-    <description>Spring AI demo: chatbot, in-memory + JDBC chat memory, web search tool,
-        tool chaining, and RAG with ChromaDB - built for the Java AI Launchpad trainer evaluation</description>
 
     <properties>
         <java.version>17</java.version>
@@ -42,54 +40,35 @@
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Spring AI: OpenAI chat model -->
+        <!-- Spring AI: OpenAI chat + embedding model. Covers: simple chatbot,
+             in-memory stateful chat, tool calling/chaining, web search tool -
+             all with zero external services. -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-openai</artifactId>
         </dependency>
 
-        <!-- Spring AI: ChromaDB vector store (for RAG) -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-starter-vector-store-chroma</artifactId>
-        </dependency>
-
-        <!-- Spring AI: QuestionAnswerAdvisor / VectorStoreChatMemoryAdvisor now live in their own module (1.0.0 GA) -->
-        <dependency>
-            <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-advisors-vector-store</artifactId>
-        </dependency>
-
-        <!-- Spring AI: JDBC-backed chat memory -->
+        <!-- JDBC-backed chat memory (persists across restarts, multi-user isolation) -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
             <artifactId>spring-ai-starter-model-chat-memory-repository-jdbc</artifactId>
         </dependency>
-
-        <!-- JDBC + embedded DB for chat memory storage (swap for Postgres/MySQL in real use).
-             NOTE: H2 is NOT one of Spring AI's officially supported JDBC chat-memory dialects
-             (only PostgreSQL, MySQL/MariaDB, SQL Server, HSQLDB, Oracle ship a schema script) -
-             HSQLDB is used here instead for that reason. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-jdbc</artifactId>
         </dependency>
         <dependency>
+            <!-- HSQLDB, not H2: Spring AI's JDBC chat memory module only ships
+                 schema scripts for PostgreSQL/MySQL/SQL Server/HSQLDB/Oracle -->
             <groupId>org.hsqldb</groupId>
             <artifactId>hsqldb</artifactId>
             <scope>runtime</scope>
         </dependency>
 
-        <!-- PDF reading for RAG document ingestion -->
+        <!-- RAG: in-memory SimpleVectorStore (no external server) + the QuestionAnswerAdvisor -->
         <dependency>
             <groupId>org.springframework.ai</groupId>
-            <artifactId>spring-ai-pdf-document-reader</artifactId>
-        </dependency>
-
-        <dependency>
-            <groupId>org.springframework.boot</groupId>
-            <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
+            <artifactId>spring-ai-advisors-vector-store</artifactId>
         </dependency>
     </dependencies>
 

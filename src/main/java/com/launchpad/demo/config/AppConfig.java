@@ -1,42 +1,36 @@
 package com.launchpad.demo.config;
 
-import com.launchpad.demo.tool.EmployeeTools;
-import com.launchpad.demo.tool.WebSearchTools;
+import com.launchpad.demo.tool.EmsTools;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.chat.memory.InMemoryChatMemoryRepository;
 import org.springframework.ai.chat.memory.MessageWindowChatMemory;
 import org.springframework.ai.chat.memory.repository.jdbc.JdbcChatMemoryRepository;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.openai.OpenAiChatModel;
+import org.springframework.ai.vectorstore.SimpleVectorStore;
+import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
-/**
- * All ChatClient variants used across the demo are built here so the
- * controllers stay thin and each concept (memory strategy, tools) is
- * visible in one place while presenting.
- */
 @Configuration
-public class ChatClientConfig {
+public class AppConfig {
 
     private static final String SYSTEM_PROMPT = """
             You are Ema, the assistant for the Employee Management System (EMS).
-            Answer clearly and concisely. When a tool is available and relevant, use it
-            instead of guessing.
+            Be concise. Use a tool when one is available and relevant instead of guessing.
             """;
 
-    /** 1. Simple chatbot - no memory, no tools. Stateless, one-shot Q&A. */
+    /** Demo 1: simple, stateless chatbot - no memory, no tools. */
     @Bean
     @Qualifier("simpleChatClient")
     public ChatClient simpleChatClient(OpenAiChatModel model) {
-        return ChatClient.builder(model)
-                .defaultSystem(SYSTEM_PROMPT)
-                .build();
+        return ChatClient.builder(model).defaultSystem(SYSTEM_PROMPT).build();
     }
 
-    /** 2. Stateful conversation using in-memory chat memory (lost on restart). */
+    /** Demo 2: stateful chat, in-memory (lost on restart). */
     @Bean
     @Qualifier("inMemoryChatClient")
     public ChatClient inMemoryChatClient(OpenAiChatModel model) {
@@ -44,50 +38,39 @@ public class ChatClientConfig {
                 .chatMemoryRepository(new InMemoryChatMemoryRepository())
                 .maxMessages(20)
                 .build();
-
         return ChatClient.builder(model)
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build())
                 .build();
     }
 
-    /** 3. Stateful conversation using JDBC-backed chat memory (persists across restarts). */
+    /** Demo 3: stateful chat, JDBC-backed (persists, per-conversationId isolation). */
     @Bean
     @Qualifier("jdbcChatClient")
-    public ChatClient jdbcChatClient(OpenAiChatModel model, JdbcChatMemoryRepository jdbcChatMemoryRepository) {
+    public ChatClient jdbcChatClient(OpenAiChatModel model, JdbcChatMemoryRepository jdbcRepo) {
         ChatMemory memory = MessageWindowChatMemory.builder()
-                .chatMemoryRepository(jdbcChatMemoryRepository)
+                .chatMemoryRepository(jdbcRepo)
                 .maxMessages(50)
                 .build();
-
         return ChatClient.builder(model)
                 .defaultSystem(SYSTEM_PROMPT)
                 .defaultAdvisors(MessageChatMemoryAdvisor.builder(memory).build())
                 .build();
     }
 
-    /** 4. Web-search-enabled chat client - binds the WebSearchTools bean as a callable tool. */
+    /** Demo 4 & 5: web search tool + tool chaining, both bound from the same EmsTools bean. */
     @Bean
-    @Qualifier("webSearchChatClient")
-    public ChatClient webSearchChatClient(OpenAiChatModel model, WebSearchTools webSearchTools) {
+    @Qualifier("toolsChatClient")
+    public ChatClient toolsChatClient(OpenAiChatModel model, EmsTools emsTools) {
         return ChatClient.builder(model)
                 .defaultSystem(SYSTEM_PROMPT)
-                .defaultTools(webSearchTools)
+                .defaultTools(emsTools)
                 .build();
     }
 
-    /**
-     * 5. Tool-chaining chat client - binds two EmployeeTools methods. A single user
-     * question (e.g. "What's the leave balance for employee E101?") forces the model
-     * to call getEmployee() first to resolve context, then getLeaveBalance() - that
-     * two-step call sequence is the "chaining" you present live.
-     */
+    /** Demo 6: RAG - in-memory vector store, no external server required. */
     @Bean
-    @Qualifier("toolChainChatClient")
-    public ChatClient toolChainChatClient(OpenAiChatModel model, EmployeeTools employeeTools) {
-        return ChatClient.builder(model)
-                .defaultSystem(SYSTEM_PROMPT)
-                .defaultTools(employeeTools)
-                .build();
+    public VectorStore vectorStore(EmbeddingModel embeddingModel) {
+        return SimpleVectorStore.builder(embeddingModel).build();
     }
 }

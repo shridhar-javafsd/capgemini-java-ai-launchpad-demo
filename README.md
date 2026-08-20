@@ -1,132 +1,78 @@
-# Java AI Launchpad — Trainer Evaluation Demo
+# Java AI Launchpad — Trainer Evaluation Demo (minimal build)
 
-A single Spring Boot + Spring AI app covering every point the coordinator listed:
-simple chatbot → stateful memory (in-memory + JDBC, single & multi-user) →
-web search tool → tool chaining → RAG with ChromaDB.
+No Docker, no external servers. Everything runs from one `mvn spring-boot:run`.
 
-Domain: Employee Management System (EMS) — same domain as the rest of the
-IBM courseware, so this doubles as a teaching example and not just a checkbox demo.
-
-## 1. Prerequisites
-
-- Java 17+
-- Maven 3.9+
-- An OpenAI API key
-- Docker (to run ChromaDB locally)
-- (Optional) A free Tavily API key for the web search tool — https://tavily.com
-
-## 2. One-time setup
+## Setup
 
 ```bash
-# Start ChromaDB locally
-docker run -d --name chroma -p 8000:8000 chromadb/chroma
-
-# Set your keys
 export OPENAI_API_KEY=sk-...
-export TAVILY_API_KEY=tvly-...   # optional — without it, the web search tool returns a stub message
-
-# Build
+export TAVILY_API_KEY=tvly-...   # optional — omit and web search just returns a stub message
 mvn clean install
-```
-
-## 3. Run
-
-```bash
 mvn spring-boot:run
 ```
 
-The app starts on `http://localhost:8080` and, on boot, ingests
-`src/main/resources/docs/leave-policy.md` into ChromaDB (watch the console
-log for `[RAG] Ingested N chunks...`).
+On boot you should see `[RAG] Ingested N chunks from leave-policy.md (in-memory store)`.
+That confirms RAG is ready with zero extra setup.
 
-## 4. Demo script — run these in order during the evaluation call
+## Demo script
 
-**1. Simple chatbot**
 ```bash
+# 1. Simple chatbot
 curl "http://localhost:8080/api/chat/simple?message=What+can+you+help+me+with?"
-```
-Talk point: stateless, no memory, no tools — the baseline.
 
-**2. Stateful conversation — in-memory**
-```bash
+# 2. Stateful chat - in-memory (lost on restart)
 curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=demo-1&message=My+name+is+Vaman"
 curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=demo-1&message=What+is+my+name?"
-```
-Talk point: the model remembers within the process, but history is gone on restart.
 
-**3. Stateful conversation — JDBC memory, single vs multi-user**
-```bash
+# 3. Stateful chat - JDBC-backed, single vs multi-user
 curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-1&message=My+name+is+Vaman"
-curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-1&message=What+is+my+name?"
+curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-2&message=What+is+my+name?"   # no memory of Vaman
+curl "http://localhost:8080/api/chat/memory/history?conversationId=user-1"                          # proof: read straight from DB
 
-# Different conversationId = a different "user" with zero shared history
-curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-2&message=What+is+my+name?"
-
-# Proof point: read straight from HSQLDB, bypassing the model entirely
-curl "http://localhost:8080/api/chat/memory/history?conversationId=user-1"
-curl "http://localhost:8080/api/chat/memory/history?conversationId=user-2"
-```
-Talk point: `/history` hits the database directly via `JdbcChatMemoryRepository`, so
-you can show `user-1`'s history containing "Vaman" while `user-2`'s is empty of
-it — durable, per-conversation storage, not just the model "remembering."
-
-**4. Web search tool**
-```bash
+# 4. Web search tool
 curl "http://localhost:8080/api/chat/websearch?message=What+is+the+latest+stable+Spring+Boot+version?"
-```
-Talk point: this is *not* built into Spring AI — it's a plain `@Tool` method
-calling an external search API (Tavily here; Bing/SerpAPI work identically).
 
-**5. Tool chaining**
-```bash
+# 5. Tool chaining (employee lookup -> leave balance, two-hop call in one turn)
 curl "http://localhost:8080/api/chat/toolchain?message=What+is+the+leave+balance+for+employee+E102?"
-```
-Talk point: the model has to resolve the employee via `getEmployee()` first,
-then call `getLeaveBalance()` — a genuine two-hop chain in a single turn.
-Show the DEBUG logs (`logging.level.org.springframework.ai=DEBUG`) so the
-tool-call sequence is visible live, not just asserted.
 
-**6. RAG over EMS HR policy (ChromaDB)**
-```bash
+# 6. RAG over the EMS leave policy (in-memory vector store)
 curl "http://localhost:8080/api/rag/ask?question=How+many+days+of+sick+leave+do+I+get?"
 curl "http://localhost:8080/api/rag/ask?question=Can+I+carry+forward+unused+leave?"
 ```
-Talk point: answers come only from `leave-policy.md`'s embedded chunks in
-ChromaDB — ask something *not* in the document to show it correctly says it
-doesn't know, rather than hallucinating.
 
-## 5. The "where it breaks" moment (recommended — see prior guidance)
+Recommended: also ask the tool-chain endpoint about a non-existent employee (`E999`)
+to show it fails gracefully instead of hallucinating — a strong "I understand
+AI's failure modes" moment for the evaluators.
 
-Deliberately ask the tool-chain endpoint about a non-existent employee ID
-(e.g. `E999`) and show how the model handles the tool returning "No employee
-found" gracefully instead of inventing an answer. This is the senior-trainer
-signal: showing you understand failure modes, not just the happy path.
+## Why these choices
 
-## 6. Project layout
+- **HSQLDB, not H2**, for JDBC chat memory — Spring AI's JDBC chat memory
+  module only ships schema scripts for PostgreSQL, MySQL/MariaDB, SQL Server,
+  HSQLDB, and Oracle. H2 isn't supported and fails at startup.
+- **SimpleVectorStore, not ChromaDB**, for RAG — in-memory, ships in Spring
+  AI core, needs no Docker or external process. The coordinator's brief
+  explicitly lists "simple vector store" as one of the three acceptable RAG
+  options, so this is a legitimate choice, not a shortcut.
+- **`QuestionAnswerAdvisor`** lives in `org.springframework.ai.chat.client.advisor.vectorstore`
+  and needs the separate `spring-ai-advisors-vector-store` dependency in
+  Spring AI 1.0.0 GA — easy to miss since older milestone docs show a
+  different package.
+
+## Project layout
 
 ```
-config/    ChatClient bean per demo scenario (simple / in-memory / jdbc / web search / tool chain)
-tool/      @Tool-annotated classes: WebSearchTools, EmployeeTools
-rag/       DocumentIngestionService — loads leave-policy.md into ChromaDB on boot
-controller/ One thin REST controller per demo point
-resources/docs/leave-policy.md  Sample EMS document for RAG
+config/AppConfig.java       All ChatClient beans + the VectorStore bean, in one place
+tool/EmsTools.java           @Tool methods: employee lookup, leave balance, web search
+controller/DemoController.java   Endpoints 1-5
+controller/RagController.java    Endpoint 6
+rag/DocumentIngestionService.java  Loads leave-policy.md into the vector store on boot
+resources/docs/leave-policy.md     Sample EMS document
 ```
 
-## 7. Known gaps closed while building this
+## If you want ChromaDB back later
 
-- **H2 was originally used for JDBC chat memory storage and does not work** —
-  Spring AI's JDBC chat memory module only ships schema scripts for
-  PostgreSQL, MySQL/MariaDB, SQL Server, HSQLDB, and Oracle. H2 isn't one of
-  them, so it fails at startup with "No schema scripts found". This project
-  now uses **HSQLDB** instead, which is officially supported and just as easy
-  to run locally as a file-based embedded DB — no separate install needed.
-- Pin exact Spring AI artifact versions against the current Spring AI BOM
-  (`1.0.0` used here) — Spring AI's package structure moved multiple times
-  through its 1.0.0 milestones (e.g. `QuestionAnswerAdvisor` moved into
-  `org.springframework.ai.chat.client.advisor.vectorstore` and its own
-  `spring-ai-advisors-vector-store` dependency in the GA release).
-- Swap HSQLDB for Postgres/MySQL if you want to demo a more
-  production-realistic JDBC memory backend.
-- Add a second sample document (e.g. IT policy) to make the RAG demo show
-  retrieval *selecting the right document*, not just answering from the only
-  one available.
+Once the core demo is solid, ChromaDB can be swapped back in for a closer-to-production
+RAG story: add `spring-ai-starter-vector-store-chroma`, remove the `vectorStore` bean
+from `AppConfig.java` (let auto-configuration create it instead), and run Chroma
+locally without Docker via `pip install chromadb && chroma run --path ./chroma-data`.
+Not required for the evaluation — only worth doing if you want the extra polish.

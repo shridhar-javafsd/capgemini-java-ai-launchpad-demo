@@ -5,7 +5,6 @@ spring:
   application:
     name: java-ai-launchpad-demo
 
-  # OpenAI credentials - set OPENAI_API_KEY as an environment variable, never hardcode it
   ai:
     openai:
       api-key: ${OPENAI_API_KEY}
@@ -13,34 +12,14 @@ spring:
         options:
           model: gpt-4o-mini
           temperature: 0.4
-    vectorstore:
-      chroma:
-        client:
-          host: http://localhost
-          port: 8000
-        collection-name: ems_hr_policies
-        initialize-schema: true
-    chat:
-      memory:
-        repository:
-          jdbc:
-            # auto-creates the SPRING_AI_CHAT_MEMORY table on startup
-            initialize-schema: always
 
-  # Embedded HSQLDB used only to store JDBC-backed chat memory for the demo.
-  # H2 is NOT used here because Spring AI's JDBC chat memory module does not ship
-  # a schema script for H2 - HSQLDB is one of its officially supported dialects.
-  # Swap for Postgres/MySQL in a real deployment.
+  # Embedded HSQLDB, used only to persist JDBC-backed chat memory.
   datasource:
     url: jdbc:hsqldb:file:./data/chatmemory;shutdown=true
     driver-class-name: org.hsqldb.jdbc.JDBCDriver
     username: SA
     password:
 
-  sql:
-    init:
-      mode: always
-
 logging:
   level:
-    org.springframework.ai: DEBUG
+    org.springframework.ai: INFO

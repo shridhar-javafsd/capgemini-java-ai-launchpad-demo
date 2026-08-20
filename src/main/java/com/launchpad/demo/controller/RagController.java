@@ -9,12 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * Demo point 6: RAG query endpoint.
- *
- * QuestionAnswerAdvisor retrieves the top matching chunks from ChromaDB and
- * stuffs them into the prompt context before calling the model - the
- * simplest correct shape of "simple vector store RAG".
- *
+ * Demo 6: RAG query endpoint, backed by the in-memory SimpleVectorStore.
  * curl "http://localhost:8080/api/rag/ask?question=How+many+days+of+sick+leave+do+I+get?"
  */
 @RestController
@@ -32,9 +27,6 @@ public class RagController {
 
     @GetMapping("/api/rag/ask")
     public String ask(@RequestParam String question) {
-        return ragChatClient.prompt()
-                .user(question)
-                .call()
-                .content();
+        return ragChatClient.prompt().user(question).call().content();
     }
 }

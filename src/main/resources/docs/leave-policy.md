@@ -13,8 +13,7 @@ certificate is required for sick leave taken for more than 2 consecutive days.
 ## Leave Application Process
 Leave requests must be submitted through the EMS portal at least 3 working
 days in advance, except for sick leave, which may be applied for
-retroactively within 2 working days of returning to work. Leave requests are
-routed to the employee's reporting manager for approval.
+retroactively within 2 working days of returning to work.
 
 ## Maternity and Paternity Leave
 Maternity leave is 26 weeks paid leave for the birth parent. Paternity leave
