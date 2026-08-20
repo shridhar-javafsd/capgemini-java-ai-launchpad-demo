@@ -1,78 +1,298 @@
-# Java AI Launchpad — Trainer Evaluation Demo (minimal build)
+# Java AI Launchpad — EMS Spring AI Demo
 
-No Docker, no external servers. Everything runs from one `mvn spring-boot:run`.
+A single Spring Boot app that shows off six core Spring AI capabilities, all wired to a tiny
+fictional Employee Management System (EMS):
 
-## Setup
+1. **Simple chatbot** — stateless, no memory
+2. **In-memory conversation memory** — remembers you, forgets on restart
+3. **JDBC-backed conversation memory** — remembers you *forever* (well, until you delete the DB file)
+4. **Web search tool calling** — the model decides on its own when to search the web
+5. **Tool chaining** — the model calls more than one tool in a single turn
+6. **RAG** — answers grounded in an actual policy doc, not vibes
+
+You can run this two ways: **free and local with Ollama**, or **with a real OpenAI key**. Same
+code either way — genuinely zero code changes, just environment variables. We'll do Ollama first
+because it costs nothing and you can be chatting with it in under 10 minutes.
+
+---
+
+## 0. Before you clone anything
+
+You'll need:
+
+- **Java 17+**
+- **Maven 3.9+**
+- A [Serper.dev](https://serper.dev) API key (free, 2,500 queries, no card required) — this
+  powers the web search tool (#4 and #5 above). The app *runs* without it, the search tool just
+  won't return real results.
+
+That's it for prerequisites shared by both paths. Model-specific setup is below.
+
+---
+
+## 1. Quick start with Ollama (free, local, no API key)
+
+### 1.1 Install Ollama and pull two models
+
+You need **two** local models — one for chat, one for embeddings (RAG needs both, and Ollama
+doesn't ship a default embedding model the way OpenAI does).
 
 ```bash
-export OPENAI_API_KEY=sk-...
-export SERPER_API_KEY=...   # optional — omit and web search just returns a stub message. Free at serper.dev, no card.
-mvn clean install
+# Install: https://ollama.com/download
+
+ollama pull llama3.2          # chat model
+ollama pull nomic-embed-text  # embedding model, needed for RAG (#6)
+ollama serve                  # starts the local server on :11434 (skip if it's already running)
+```
+
+Sanity-check it's alive:
+
+```bash
+curl http://localhost:11434/v1/models
+```
+
+### 1.2 Set your environment variables
+
+```bash
+export OPENAI_BASE_URL=http://localhost:11434/v1   # note the /v1 — see gotcha #5 below
+export OPENAI_API_KEY=ollama                        # any non-empty string works, Ollama ignores it
+export OPENAI_CHAT_MODEL=llama3.2
+export OPENAI_EMBEDDING_MODEL=nomic-embed-text
+export SERPER_API_KEY=your-serper-key-here
+```
+
+### 1.3 Run it
+
+```bash
 mvn spring-boot:run
 ```
 
-On boot you should see `[RAG] Ingested N chunks from leave-policy.md (in-memory store)`.
-That confirms RAG is ready with zero extra setup.
+App comes up on `http://localhost:8080`. Jump to [section 4](#4-the-6-features-with-examples) to
+start hitting endpoints, or [section 5](#5-swagger-ui-try-it-in-the-browser) to try it in the browser.
 
-## Demo script
+> **Heads up on quality:** small local models like `llama3.2` are genuinely less reliable at tool
+> calling than GPT-4o-mini — see [Troubleshooting](#6-troubleshooting--things-we-actually-hit).
+> It's not a bug in this repo, it's just what running a 3B-class model locally looks like.
+
+---
+
+## 2. Switching to OpenAI (real key, zero code changes)
+
+This whole app reads its model config from environment variables — there is genuinely nothing
+to edit in the code or `application.yml`. Just point the same four variables at OpenAI instead:
 
 ```bash
-# 1. Simple chatbot
-curl "http://localhost:8080/api/chat/simple?message=What+can+you+help+me+with?"
+export OPENAI_BASE_URL=https://api.openai.com   # no /v1 here — see gotcha #5
+export OPENAI_API_KEY=sk-...your real key...
+export OPENAI_CHAT_MODEL=gpt-4o-mini
+export OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+export SERPER_API_KEY=your-serper-key-here
 
-# 2. Stateful chat - in-memory (lost on restart)
-curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=demo-1&message=My+name+is+Vaman"
-curl "http://localhost:8080/api/chat/memory/inmemory?conversationId=demo-1&message=What+is+my+name?"
-
-# 3. Stateful chat - JDBC-backed, single vs multi-user
-curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-1&message=My+name+is+Vaman"
-curl "http://localhost:8080/api/chat/memory/jdbc?conversationId=user-2&message=What+is+my+name?"   # no memory of Vaman
-curl "http://localhost:8080/api/chat/memory/history?conversationId=user-1"                          # proof: read straight from DB
-
-# 4. Web search tool
-curl "http://localhost:8080/api/chat/websearch?message=What+is+the+latest+stable+Spring+Boot+version?"
-
-# 5. Tool chaining (employee lookup -> leave balance, two-hop call in one turn)
-curl "http://localhost:8080/api/chat/toolchain?message=What+is+the+leave+balance+for+employee+E102?"
-
-# 6. RAG over the EMS leave policy (in-memory vector store)
-curl "http://localhost:8080/api/rag/ask?question=How+many+days+of+sick+leave+do+I+get?"
-curl "http://localhost:8080/api/rag/ask?question=Can+I+carry+forward+unused+leave?"
+mvn spring-boot:run
 ```
 
-Recommended: also ask the tool-chain endpoint about a non-existent employee (`E999`)
-to show it fails gracefully instead of hallucinating — a strong "I understand
-AI's failure modes" moment for the evaluators.
+Same jar, same endpoints, same everything — just a smarter, paid model behind it. This is the
+config you want before anything that actually matters (a demo, an evaluation, showing a friend).
 
-## Why these choices
+---
 
-- **HSQLDB, not H2**, for JDBC chat memory — Spring AI's JDBC chat memory
-  module only ships schema scripts for PostgreSQL, MySQL/MariaDB, SQL Server,
-  HSQLDB, and Oracle. H2 isn't supported and fails at startup.
-- **SimpleVectorStore, not ChromaDB**, for RAG — in-memory, ships in Spring
-  AI core, needs no Docker or external process. The coordinator's brief
-  explicitly lists "simple vector store" as one of the three acceptable RAG
-  options, so this is a legitimate choice, not a shortcut.
-- **`QuestionAnswerAdvisor`** lives in `org.springframework.ai.chat.client.advisor.vectorstore`
-  and needs the separate `spring-ai-advisors-vector-store` dependency in
-  Spring AI 1.0.0 GA — easy to miss since older milestone docs show a
-  different package.
+## 3. What's actually happening under the hood
 
-## Project layout
+`application.yml` has this at its core:
 
-```
-config/AppConfig.java       All ChatClient beans + the VectorStore bean, in one place
-tool/EmsTools.java           @Tool methods: employee lookup, leave balance, web search
-controller/DemoController.java   Endpoints 1-5
-controller/RagController.java    Endpoint 6
-rag/DocumentIngestionService.java  Loads leave-policy.md into the vector store on boot
-resources/docs/leave-policy.md     Sample EMS document
+```yaml
+spring:
+  ai:
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${OPENAI_API_KEY}
+      chat:
+        options:
+          model: ${OPENAI_CHAT_MODEL:gpt-4o-mini}
+      embedding:
+        options:
+          model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
 ```
 
-## If you want ChromaDB back later
+Ollama ships an OpenAI-compatible API, so Spring AI's regular OpenAI client can talk to it —
+you're just handing it a different `base-url`. That's the entire trick. No Ollama-specific
+starter, no separate config class, no `if (provider == ...)` branching anywhere in the codebase.
 
-Once the core demo is solid, ChromaDB can be swapped back in for a closer-to-production
-RAG story: add `spring-ai-starter-vector-store-chroma`, remove the `vectorStore` bean
-from `AppConfig.java` (let auto-configuration create it instead), and run Chroma
-locally without Docker via `pip install chromadb && chroma run --path ./chroma-data`.
-Not required for the evaluation — only worth doing if you want the extra polish.
+---
+
+## 4. The 6 features, with examples
+
+All examples below use `curl`, but see [section 5](#5-swagger-ui-try-it-in-the-browser) for a
+point-and-click way to do the same thing.
+
+### 1️⃣ Simple chatbot — no memory
+```bash
+curl -G localhost:8080/api/chat/simple --data-urlencode "message=What is dependency injection?"
+```
+
+### 2️⃣ In-memory conversation — remembers you until restart
+```bash
+curl -G localhost:8080/api/chat/memory/inmemory \
+  --data-urlencode "conversationId=alice" \
+  --data-urlencode "message=My name is Alice."
+
+curl -G localhost:8080/api/chat/memory/inmemory \
+  --data-urlencode "conversationId=alice" \
+  --data-urlencode "message=What's my name?"
+# -> should say Alice
+```
+Try a different `conversationId` and it won't know anything about Alice — each id is its own
+isolated conversation. That's single-user and multi-user support, from the same endpoint.
+
+### 3️⃣ JDBC-backed conversation — remembers you across restarts
+Same idea, different endpoint:
+```bash
+curl -G localhost:8080/api/chat/memory/jdbc \
+  --data-urlencode "conversationId=bob" \
+  --data-urlencode "message=I work in the Sales department."
+```
+Restart the app, then ask it again with the same `conversationId` — it still remembers, because
+it's reading/writing an actual HSQLDB table on disk instead of a JVM-memory map.
+
+Proof-of-persistence endpoint — reads the raw stored history straight from the DB:
+```bash
+curl -G localhost:8080/api/chat/memory/history --data-urlencode "conversationId=bob"
+```
+
+### 4️⃣ Web search tool
+```bash
+curl -G localhost:8080/api/chat/websearch \
+  --data-urlencode "message=What is the latest stable Spring Boot version?"
+```
+The model decides on its own whether the question needs a live web search — you're not routing
+this manually anywhere in the code.
+
+### 5️⃣ Tool chaining
+```bash
+curl -G localhost:8080/api/chat/toolchain \
+  --data-urlencode "message=Look up employee E101 and tell me their leave balance, then search the web for how many annual leave days are typical in India."
+```
+This forces the model to call **two different tools** (`getEmployee`/`getLeaveBalance` and
+`searchWeb`) in one turn before it can answer — that's tool chaining.
+
+### 6️⃣ RAG — grounded in `leave-policy.md`
+```bash
+curl -G localhost:8080/api/rag/ask \
+  --data-urlencode "question=How many days of sick leave do I get?"
+```
+The answer traces back to `src/main/resources/docs/leave-policy.md`, not to whatever the model
+happened to memorize during training — that's the whole point of RAG.
+
+---
+
+## 5. Swagger UI — try it in the browser
+
+No curl, no Postman, nothing to install. Once the app is running:
+
+- **Swagger UI:** [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
+- **Raw OpenAPI spec (JSON):** [http://localhost:8080/v3/api-docs](http://localhost:8080/v3/api-docs)
+
+Every endpoint above shows up there automatically, grouped and numbered in the order you'd
+naturally walk through them, with a "Try it out" button that fires a real request and shows you
+the real response — no separate tool needed. This is genuinely how most real Spring Boot teams
+hand off an API for others to explore, not just a demo trick.
+
+---
+
+## 6. Troubleshooting / things we actually hit
+
+These aren't hypothetical — every one of these was a real error message at some point building
+this repo.
+
+### HSQLDB instead of H2
+Spring AI's JDBC chat-memory module only ships ready-made schema scripts for a specific set of
+databases (PostgreSQL, MySQL, SQL Server, HSQLDB, Oracle) — **H2 isn't in that list** in the
+current release, even though H2 is usually everyone's first instinct for "just give me an
+embedded DB." Using H2 here throws a `No schema scripts found` error at startup. HSQLDB is,
+so that's what this project uses for the JDBC-memory demo.
+
+### `SimpleVectorStore` instead of ChromaDB
+RAG needs a vector store. `SimpleVectorStore` is in-memory and ships with Spring AI core — no
+extra process to install or run before you can try the RAG endpoint. The trade-off: it's rebuilt
+from scratch every time the app restarts and won't scale past a small demo dataset. Swapping in
+`ChromaVectorStore` or `PgVectorStore` later is a one-bean change in `AppConfig`, not a rewrite.
+
+### `QuestionAnswerAdvisor`'s package
+If you're following an older tutorial and get a "cannot find symbol" on this import, it's because
+the class lives at:
+```java
+org.springframework.ai.chat.client.advisor.vectorstore.QuestionAnswerAdvisor
+```
+and ships in its own artifact:
+```xml
+<dependency>
+    <groupId>org.springframework.ai</groupId>
+    <artifactId>spring-ai-advisors-vector-store</artifactId>
+</dependency>
+```
+Older Spring AI milestone versions had this advisor in a different package — if a blog post's
+import doesn't compile, this is usually why.
+
+### `spring.ai.chat.memory.repository.jdbc.initialize-schema`
+This property (set to `always` in `application.yml`) is what auto-creates the
+`SPRING_AI_CHAT_MEMORY` table on startup. Without it, endpoint #3 fails the first time you ever
+run the app against a fresh database.
+
+### `base-url` isn't the same shape for every provider — read this before you get a 404
+This is the one that actually costs people time, so pay attention to the exact value:
+
+| Provider | `OPENAI_BASE_URL` value | Why |
+|---|---|---|
+| OpenAI | `https://api.openai.com` (**no** `/v1`) | Spring AI's OpenAI client appends `/v1/...` itself for the real OpenAI API |
+| Ollama | `http://localhost:11434/v1` (**with** `/v1`) | Ollama's OpenAI-compatibility layer expects the `/v1` prefix already in the base URL you give it |
+
+Mixing these up gets you a 404 or a connection error that doesn't obviously point at the real
+cause.
+
+**Also, about that tool-call-JSON-leaking-into-the-answer-text bug:** if you've seen a response
+that looks like `{"name": "searchWeb", "parameters": {...}}` printed out as plain chat text
+instead of the tool actually running — that's a known rough edge with Ollama's `/v1`
+OpenAI-compatibility layer specifically, more common with smaller models. It isn't a bug in this
+code; the exact same tool call can work perfectly a few requests later against the exact same
+setup. If you need rock-solid tool calling every time, that's the strongest reason to run this
+against a real OpenAI key (or a larger model) rather than something to debug further here.
+
+---
+
+## 7. Project structure
+
+```
+src/main/java/com/launchpad/demo/
+├── JavaAiLaunchpadDemoApplication.java   # entry point
+├── config/
+│   ├── AppConfig.java                    # 5 ChatClient beans - one per memory/tool strategy
+│   └── OpenApiConfig.java                # Swagger UI page title/description
+├── controller/
+│   ├── DemoController.java               # endpoints #1-#5
+│   └── RagController.java                # endpoint #6
+├── rag/
+│   └── DocumentIngestionService.java     # loads leave-policy.md into the vector store at startup
+└── tool/
+    └── EmsTools.java                     # getEmployee / getLeaveBalance / searchWeb (Serper)
+
+src/main/resources/
+├── application.yml
+└── docs/leave-policy.md                  # the RAG source document
+```
+
+---
+
+## 8. Recap: the only 4 things that change between Ollama and OpenAI
+
+```
+OPENAI_BASE_URL        OPENAI_API_KEY   OPENAI_CHAT_MODEL   OPENAI_EMBEDDING_MODEL
+─────────────────────  ───────────────  ───────────────────  ───────────────────────
+Ollama (local, free):
+http://localhost:11434/v1   ollama       llama3.2             nomic-embed-text
+
+OpenAI (real, paid):
+https://api.openai.com      sk-...       gpt-4o-mini           text-embedding-3-small
+```
+
+Everything else — every controller, every tool, every advisor — is identical. That's the actual
+point of Spring AI's abstraction layer, demonstrated rather than just claimed.
