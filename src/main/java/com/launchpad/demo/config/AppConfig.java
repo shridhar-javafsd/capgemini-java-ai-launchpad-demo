@@ -58,12 +58,25 @@ public class AppConfig {
                 .build();
     }
 
-    /** Demo 4 & 5: web search tool + tool chaining, both bound from the same EmsTools bean. */
+    /** Demo 4 & 5: web search tool + tool chaining, both bound from the same EmsTools bean.
+     * The stronger, explicit instruction below matters more than it might seem - smaller
+     * models in particular will often answer confidently from training data instead of
+     * calling an available tool unless told plainly that guessing isn't acceptable. */
     @Bean
     @Qualifier("toolsChatClient")
     public ChatClient toolsChatClient(OpenAiChatModel model, EmsTools emsTools) {
+        String toolsSystemPrompt = SYSTEM_PROMPT + """
+
+                You have tools available: searchWeb, getEmployee, getLeaveBalance.
+                For any question about current, recent, or fast-changing information -
+                software versions, dates, news, prices, or anything that could be outdated
+                in your training data - you MUST call searchWeb and answer from its result.
+                Do not answer such questions from memory, even if you believe you know the
+                answer. For employee-related questions, always call getEmployee and/or
+                getLeaveBalance rather than guessing.
+                """;
         return ChatClient.builder(model)
-                .defaultSystem(SYSTEM_PROMPT)
+                .defaultSystem(toolsSystemPrompt)
                 .defaultTools(emsTools)
                 .build();
     }

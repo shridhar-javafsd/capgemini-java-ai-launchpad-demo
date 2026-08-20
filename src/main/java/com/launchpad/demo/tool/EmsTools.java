@@ -16,10 +16,11 @@ public class EmsTools {
             "E103", Map.of("name", "Priya Nair", "department", "HR", "leaveBalance", 18)
     );
 
-    private final RestClient tavily = RestClient.create("https://api.tavily.com");
+    // Serper.dev: 2,500 free queries, no credit card required. Get a key at serper.dev.
+    private final RestClient serper = RestClient.create("https://google.serper.dev");
 
-    @Value("${TAVILY_API_KEY:}")
-    private String tavilyApiKey;
+    @Value("${SERPER_API_KEY:}")
+    private String serperApiKey;
 
     @Tool(description = "Look up an employee's basic profile (name and department) by employee ID.")
     public String getEmployee(String employeeId) {
@@ -39,12 +40,14 @@ public class EmsTools {
     @Tool(description = "Search the public web for current information not in the model's training data, "
             + "such as recent news or fast-changing facts.")
     public String searchWeb(String query) {
-        if (tavilyApiKey.isBlank()) {
-            return "Web search is not configured (no TAVILY_API_KEY set). Would have searched for: " + query;
+        if (serperApiKey.isBlank()) {
+            return "Web search is not configured (no SERPER_API_KEY set). Would have searched for: " + query;
         }
-        return tavily.post()
+        return serper.post()
                 .uri("/search")
-                .body(Map.of("api_key", tavilyApiKey, "query", query, "max_results", 3))
+                .header("X-API-KEY", serperApiKey)
+                .header("Content-Type", "application/json")
+                .body(Map.of("q", query))
                 .retrieve()
                 .body(String.class);
     }

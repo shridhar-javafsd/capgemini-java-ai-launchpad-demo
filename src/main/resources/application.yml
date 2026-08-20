@@ -32,4 +32,3 @@ spring:
 logging:
   level:
     org.springframework.ai: INFO
-    org.springframework.ai.chat.client: DEBUG

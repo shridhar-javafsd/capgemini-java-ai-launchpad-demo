@@ -6,7 +6,7 @@ No Docker, no external servers. Everything runs from one `mvn spring-boot:run`.
 
 ```bash
 export OPENAI_API_KEY=sk-...
-export TAVILY_API_KEY=tvly-...   # optional — omit and web search just returns a stub message
+export SERPER_API_KEY=...   # optional — omit and web search just returns a stub message. Free at serper.dev, no card.
 mvn clean install
 mvn spring-boot:run
 ```
