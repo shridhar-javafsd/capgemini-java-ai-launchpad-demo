@@ -147,13 +147,13 @@ curl.exe -G localhost:8080/api/chat/simple --data-urlencode "message=What is dep
 ### 2️⃣ In-memory conversation — remembers you until restart
 ```powershell
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
-  --data-urlencode "conversationId=alice" `
-  --data-urlencode "message=My name is Alice."
+  --data-urlencode "conversationId=sonu" `
+  --data-urlencode "message=My name is Sonu."
 
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
-  --data-urlencode "conversationId=alice" `
+  --data-urlencode "conversationId=sonu" `
   --data-urlencode "message=What's my name?"
-# -> should say Alice
+# -> should say Sonu
 ```
 Different `conversationId` = totally isolated conversation. That's single- and multi-user support
 from the same endpoint, for free.
