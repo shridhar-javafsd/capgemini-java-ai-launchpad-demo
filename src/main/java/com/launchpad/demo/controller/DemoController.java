@@ -16,7 +16,6 @@ import java.util.List;
 import static org.springframework.ai.chat.memory.ChatMemory.CONVERSATION_ID;
 
 /**
- * Every demo endpoint in one place, in the order they're presented on the call.
  * See README.md for the exact curl commands and talk points for each.
  */
 @RestController
@@ -49,32 +48,27 @@ public class DemoController {
 	}
 
 	// 2. Stateful, in-memory
-	@Operation(summary = "2. Chat with in-memory conversation history",
-			description = "Remembers within this JVM's lifetime only, isolated per conversationId (= userId).")
+	@Operation(summary = "2. Chat with in-memory conversation history", description = "Remembers within this JVM's lifetime only, isolated per conversationId (= userId).")
 	@GetMapping("/api/chat/memory/inmemory")
 	public String inMemory(
-			@Parameter(description = "Conversation/user id - same id keeps context, different ids are isolated")
-			@RequestParam String conversationId,
+			@Parameter(description = "Conversation/user id - same id keeps context, different ids are isolated") @RequestParam String conversationId,
 			@Parameter(description = "The message to send") @RequestParam String message) {
 		return inMemoryChatClient.prompt().advisors(a -> a.param(CONVERSATION_ID, conversationId)).user(message).call()
 				.content();
 	}
 
 	// 3. Stateful, JDBC-backed
-	@Operation(summary = "3. Chat with JDBC-backed conversation history",
-			description = "Persists to HSQLDB - survives an app restart, isolated per conversationId (= userId).")
+	@Operation(summary = "3. Chat with JDBC-backed conversation history", description = "Persists to HSQLDB - survives an app restart, isolated per conversationId (= userId).")
 	@GetMapping("/api/chat/memory/jdbc")
 	public String jdbc(
-			@Parameter(description = "Conversation/user id - same id keeps context, different ids are isolated")
-			@RequestParam String conversationId,
+			@Parameter(description = "Conversation/user id - same id keeps context, different ids are isolated") @RequestParam String conversationId,
 			@Parameter(description = "The message to send") @RequestParam String message) {
 		return jdbcChatClient.prompt().advisors(a -> a.param(CONVERSATION_ID, conversationId)).user(message).call()
 				.content();
 	}
 
 	// 3b. Proof point: read persisted history straight from the DB
-	@Operation(summary = "3b. Read raw persisted history",
-			description = "Proof point for the JDBC memory demo - reads straight from the SPRING_AI_CHAT_MEMORY table.")
+	@Operation(summary = "3b. Read raw persisted history", description = "Proof point for the JDBC memory demo - reads straight from the SPRING_AI_CHAT_MEMORY table.")
 	@GetMapping("/api/chat/memory/history")
 	public List<String> history(
 			@Parameter(description = "Conversation/user id to look up") @RequestParam String conversationId) {
@@ -82,17 +76,15 @@ public class DemoController {
 	}
 
 	// 4. Web search tool
-	@Operation(summary = "4. Web search tool calling",
-			description = "The model decides on its own whether to call searchWeb() based on the question.")
+	@Operation(summary = "4. Web search tool calling", description = "The model decides on its own whether to call searchWeb() based on the question.")
 	@GetMapping("/api/chat/websearch")
 	public String webSearch(@Parameter(description = "The message to send") @RequestParam String message) {
 		return toolsChatClient.prompt().user(message).call().content();
 	}
 
 	// 5. Tool chaining (same client - EMS employee tools force a two-hop call)
-	@Operation(summary = "5. Tool chaining",
-			description = "Ask something that needs two tools in one turn (e.g. web search + an employee lookup) "
-					+ "to show the model calling both before replying.")
+	@Operation(summary = "5. Tool chaining", description = "Ask something that needs two tools in one turn (e.g. web search + an employee lookup) "
+			+ "to show the model calling both before replying.")
 	@GetMapping("/api/chat/toolchain")
 	public String toolChain(@Parameter(description = "The message to send") @RequestParam String message) {
 		return toolsChatClient.prompt().user(message).call().content();
