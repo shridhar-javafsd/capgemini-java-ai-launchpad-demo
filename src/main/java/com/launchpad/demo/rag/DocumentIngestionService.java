@@ -28,10 +28,15 @@ public class DocumentIngestionService implements CommandLineRunner {
 
     @Override
     public void run(String... args) {
-        TextReader reader = new TextReader(resourceLoader.getResource("classpath:docs/leave-policy.md"));
-        reader.getCustomMetadata().put("source", "ems-leave-policy");
-        List<Document> chunks = new TokenTextSplitter().apply(reader.get());
-        vectorStore.add(chunks);
-        System.out.println("[RAG] Ingested " + chunks.size() + " chunks from leave-policy.md (in-memory store)");
+        try {
+            TextReader reader = new TextReader(resourceLoader.getResource("classpath:docs/leave-policy.md"));
+            reader.getCustomMetadata().put("source", "ems-leave-policy");
+            List<Document> chunks = new TokenTextSplitter().apply(reader.get());
+            vectorStore.add(chunks);
+            System.out.println("[RAG] Ingested " + chunks.size() + " chunks from leave-policy.md (in-memory store)");
+        } catch (Exception e) {
+            System.out.println("[RAG] Skipped ingestion - OpenAI call failed at startup (" + e.getMessage() + "). "
+                    + "The app will still start; RAG queries just won't have anything to retrieve until this succeeds.");
+        }
     }
 }
