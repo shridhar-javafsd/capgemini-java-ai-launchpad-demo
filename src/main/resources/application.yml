@@ -16,6 +16,11 @@ spring:
       embedding:
         options:
           model: ${OPENAI_EMBEDDING_MODEL:text-embedding-3-small}
+    chat:
+      memory:
+        repository:
+          jdbc:
+            initialize-schema: always
 
   # Embedded HSQLDB, used only to persist JDBC-backed chat memory.
   datasource:
@@ -27,3 +32,4 @@ spring:
 logging:
   level:
     org.springframework.ai: INFO
+    org.springframework.ai.chat.client: DEBUG
