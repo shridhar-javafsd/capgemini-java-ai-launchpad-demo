@@ -20,13 +20,59 @@ because it costs nothing and you can be chatting with it in under 10 minutes.
 
 You'll need:
 
-- **Java 17+**
-- **Maven 3.9+**
+- **Java 17+** — check with `java -version`. Don't have it?
+  - macOS: `brew install openjdk@17`
+  - Linux: `sudo apt install openjdk-17-jdk` (Debian/Ubuntu) or your distro's equivalent
+  - Windows: download from [adoptium.net](https://adoptium.net) and run the installer
+  - Any OS, one-liner: [SDKMAN](https://sdkman.io) → `sdk install java 17.0.13-tem`
+- **Maven 3.9+** — check with `mvn -version`. Don't have it?
+  - macOS: `brew install maven`
+  - Linux: `sudo apt install maven`
+  - Windows: download from [maven.apache.org](https://maven.apache.org/download.cgi), unzip, add `bin` to your `PATH`
+  - Any OS: [SDKMAN](https://sdkman.io) → `sdk install maven`
 - A [Serper.dev](https://serper.dev) API key (free, 2,500 queries, no card required) — this
-  powers the web search tool (#4 and #5 above). The app *runs* without it, the search tool just
-  won't return real results.
+  powers the web search tool (#4 and #5 above). Sign up, grab the key from your dashboard. The
+  app *runs* without it, the search tool just won't return real results.
 
 That's it for prerequisites shared by both paths. Model-specific setup is below.
+
+### Clone the repo
+
+**macOS / Linux:**
+```bash
+git clone <this-repo-url>
+cd <repo-folder-name>
+```
+
+**Windows (PowerShell):**
+```powershell
+git clone <this-repo-url>
+cd <repo-folder-name>
+```
+Same command either way — `git clone` doesn't change between shells. (You do need
+[Git for Windows](https://git-scm.com/download/win) installed first if you don't have it; that
+also gives you the `git` command inside PowerShell, so there's no need to go looking for a
+separate Git Bash window for this.)
+
+(Swap in the actual URL/folder — replace this line once you've got the repo up on GitHub.)
+
+### On Windows? Read this before you run anything
+
+Every command in this README is written in **two flavors side by side: macOS/Linux (bash)** and
+**Windows (PowerShell)**. Stick to PowerShell throughout if you're on Windows — don't mix it with
+Command Prompt, the syntax differs between the two and hopping between them mid-README is how
+people get stuck. Open it via the Start menu ("PowerShell" or "Terminal" — Windows 11's default
+terminal is PowerShell already).
+
+Two things differ from the bash commands you'll see elsewhere in this README:
+
+- `export VAR=value` → `$env:VAR="value"`
+- **Important — the curl gotcha:** in PowerShell, `curl` is secretly an *alias for
+  `Invoke-WebRequest`*, not real curl. It doesn't understand `-G` or `--data-urlencode`, so every
+  curl example in [section 4](#4-the-6-features-with-examples) needs one small change: type
+  `curl.exe` instead of `curl`. Windows 11 ships a real curl.exe alongside the alias — typing
+  `.exe` forces PowerShell to use that instead of the `Invoke-WebRequest` alias. Every curl
+  example from here on shows both forms side by side so you don't have to remember this.
 
 ---
 
@@ -34,25 +80,54 @@ That's it for prerequisites shared by both paths. Model-specific setup is below.
 
 ### 1.1 Install Ollama and pull two models
 
+**Install Ollama first** — pick your OS:
+
+```bash
+# macOS (Homebrew)
+brew install ollama
+
+# macOS / Linux (official install script — works on both)
+curl -fsSL https://ollama.com/install.sh | sh
+
+# Windows
+# Download and run the installer: https://ollama.com/download/windows
+```
+
+Verify it installed correctly:
+
+```bash
+ollama --version
+```
+
+> **Heads up:** the macOS and Windows installers both set Ollama up to run automatically in the
+> background (you'll see a llama icon in your menu bar / system tray). If that's the case, you
+> don't need to run `ollama serve` manually — it's already listening on port 11434. If you try
+> anyway and see `Error: listen tcp 127.0.0.1:11434: bind: address already in use`, that error
+> is actually good news — it means Ollama's already running, just carry on to the next step.
+
 You need **two** local models — one for chat, one for embeddings (RAG needs both, and Ollama
 doesn't ship a default embedding model the way OpenAI does).
 
 ```bash
-# Install: https://ollama.com/download
-
 ollama pull llama3.2          # chat model
 ollama pull nomic-embed-text  # embedding model, needed for RAG (#6)
-ollama serve                  # starts the local server on :11434 (skip if it's already running)
+ollama serve                  # only if it's not already running in the background — see note above
 ```
 
 Sanity-check it's alive:
 
+macOS / Linux:
 ```bash
 curl http://localhost:11434/v1/models
+```
+Windows (PowerShell):
+```powershell
+curl.exe http://localhost:11434/v1/models
 ```
 
 ### 1.2 Set your environment variables
 
+**macOS / Linux:**
 ```bash
 export OPENAI_BASE_URL=http://localhost:11434/v1   # note the /v1 — see gotcha #5 below
 export OPENAI_API_KEY=ollama                        # any non-empty string works, Ollama ignores it
@@ -61,11 +136,26 @@ export OPENAI_EMBEDDING_MODEL=nomic-embed-text
 export SERPER_API_KEY=your-serper-key-here
 ```
 
+**Windows (PowerShell):**
+```powershell
+$env:OPENAI_BASE_URL="http://localhost:11434/v1"
+$env:OPENAI_API_KEY="ollama"
+$env:OPENAI_CHAT_MODEL="llama3.2"
+$env:OPENAI_EMBEDDING_MODEL="nomic-embed-text"
+$env:SERPER_API_KEY="your-serper-key-here"
+```
+*(Note: these `$env:` variables only last for the current PowerShell window/session. If you close
+the terminal, you'll need to set them again before your next `mvn spring-boot:run`.)*
+
 ### 1.3 Run it
 
 ```bash
 mvn spring-boot:run
 ```
+
+> First run will take a few minutes — Maven's downloading every dependency (Spring Boot, Spring
+> AI, etc.) for the first time. Every run after that is fast, since they're cached locally in
+> `~/.m2`.
 
 App comes up on `http://localhost:8080`. Jump to [section 4](#4-the-6-features-with-examples) to
 start hitting endpoints, or [section 5](#5-swagger-ui-try-it-in-the-browser) to try it in the browser.
@@ -81,12 +171,24 @@ start hitting endpoints, or [section 5](#5-swagger-ui-try-it-in-the-browser) to 
 This whole app reads its model config from environment variables — there is genuinely nothing
 to edit in the code or `application.yml`. Just point the same four variables at OpenAI instead:
 
+**macOS / Linux:**
 ```bash
 export OPENAI_BASE_URL=https://api.openai.com   # no /v1 here — see gotcha #5
 export OPENAI_API_KEY=sk-...your real key...
 export OPENAI_CHAT_MODEL=gpt-4o-mini
 export OPENAI_EMBEDDING_MODEL=text-embedding-3-small
 export SERPER_API_KEY=your-serper-key-here
+
+mvn spring-boot:run
+```
+
+**Windows (PowerShell):**
+```powershell
+$env:OPENAI_BASE_URL="https://api.openai.com"
+$env:OPENAI_API_KEY="sk-...your real key..."
+$env:OPENAI_CHAT_MODEL="gpt-4o-mini"
+$env:OPENAI_EMBEDDING_MODEL="text-embedding-3-small"
+$env:SERPER_API_KEY="your-serper-key-here"
 
 mvn spring-boot:run
 ```
@@ -122,15 +224,25 @@ starter, no separate config class, no `if (provider == ...)` branching anywhere 
 
 ## 4. The 6 features, with examples
 
-All examples below use `curl`, but see [section 5](#5-swagger-ui-try-it-in-the-browser) for a
-point-and-click way to do the same thing.
+All examples below use curl — macOS/Linux uses real `curl`; Windows PowerShell uses `curl.exe`
+(see the curl gotcha explained earlier) with backtick (`` ` ``) line continuations instead of
+backslash. See [section 5](#5-swagger-ui-try-it-in-the-browser) for a point-and-click way to do
+the same thing without typing any of this.
 
 ### 1️⃣ Simple chatbot — no memory
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/simple --data-urlencode "message=What is dependency injection?"
 ```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/simple --data-urlencode "message=What is dependency injection?"
+```
 
 ### 2️⃣ In-memory conversation — remembers you until restart
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/memory/inmemory \
   --data-urlencode "conversationId=alice" \
@@ -141,43 +253,90 @@ curl -G localhost:8080/api/chat/memory/inmemory \
   --data-urlencode "message=What's my name?"
 # -> should say Alice
 ```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/memory/inmemory `
+  --data-urlencode "conversationId=alice" `
+  --data-urlencode "message=My name is Alice."
+
+curl.exe -G localhost:8080/api/chat/memory/inmemory `
+  --data-urlencode "conversationId=alice" `
+  --data-urlencode "message=What's my name?"
+# -> should say Alice
+```
 Try a different `conversationId` and it won't know anything about Alice — each id is its own
 isolated conversation. That's single-user and multi-user support, from the same endpoint.
 
 ### 3️⃣ JDBC-backed conversation — remembers you across restarts
+
 Same idea, different endpoint:
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/memory/jdbc \
   --data-urlencode "conversationId=bob" \
+  --data-urlencode "message=I work in the Sales department."
+```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/memory/jdbc `
+  --data-urlencode "conversationId=bob" `
   --data-urlencode "message=I work in the Sales department."
 ```
 Restart the app, then ask it again with the same `conversationId` — it still remembers, because
 it's reading/writing an actual HSQLDB table on disk instead of a JVM-memory map.
 
 Proof-of-persistence endpoint — reads the raw stored history straight from the DB:
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/memory/history --data-urlencode "conversationId=bob"
 ```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/memory/history --data-urlencode "conversationId=bob"
+```
 
 ### 4️⃣ Web search tool
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/websearch \
+  --data-urlencode "message=What is the latest stable Spring Boot version?"
+```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/websearch `
   --data-urlencode "message=What is the latest stable Spring Boot version?"
 ```
 The model decides on its own whether the question needs a live web search — you're not routing
 this manually anywhere in the code.
 
 ### 5️⃣ Tool chaining
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/chat/toolchain \
+  --data-urlencode "message=Look up employee E101 and tell me their leave balance, then search the web for how many annual leave days are typical in India."
+```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/chat/toolchain `
   --data-urlencode "message=Look up employee E101 and tell me their leave balance, then search the web for how many annual leave days are typical in India."
 ```
 This forces the model to call **two different tools** (`getEmployee`/`getLeaveBalance` and
 `searchWeb`) in one turn before it can answer — that's tool chaining.
 
 ### 6️⃣ RAG — grounded in `leave-policy.md`
+
+macOS / Linux:
 ```bash
 curl -G localhost:8080/api/rag/ask \
+  --data-urlencode "question=How many days of sick leave do I get?"
+```
+Windows (PowerShell):
+```powershell
+curl.exe -G localhost:8080/api/rag/ask `
   --data-urlencode "question=How many days of sick leave do I get?"
 ```
 The answer traces back to `src/main/resources/docs/leave-policy.md`, not to whatever the model
@@ -237,6 +396,15 @@ import doesn't compile, this is usually why.
 This property (set to `always` in `application.yml`) is what auto-creates the
 `SPRING_AI_CHAT_MEMORY` table on startup. Without it, endpoint #3 fails the first time you ever
 run the app against a fresh database.
+
+### Port 8080 already in use
+If `mvn spring-boot:run` fails with something like `Web server failed to start. Port 8080 was
+already in use`, something else on your machine is already using that port. Either stop that
+other process, or run this app on a different port for one session without touching any config
+file:
+```bash
+mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
+```
 
 ### `base-url` isn't the same shape for every provider — read this before you get a 404
 This is the one that actually costs people time, so pay attention to the exact value:
