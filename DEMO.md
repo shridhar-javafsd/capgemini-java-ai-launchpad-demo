@@ -18,6 +18,37 @@ Keep this open on a second monitor/tab. Copy-paste, don't retype. Total: 30 min.
 
 ---
 
+## Switching providers mid-demo (Ollama first, then OpenAI)
+
+One paste each — set all five vars in one line, then restart the app (env vars are
+only read at startup, so a running app won't pick up a mid-session change).
+
+**Ollama (paste this first):**
+```powershell
+$env:OPENAI_BASE_URL="http://localhost:11434"; $env:OPENAI_API_KEY="ollama"; $env:OPENAI_CHAT_MODEL="llama3.2"; $env:OPENAI_EMBEDDING_MODEL="nomic-embed-text"; $env:SERPER_API_KEY="your-serper-key-here"
+```
+
+**OpenAI (paste this when you switch):**
+```powershell
+$env:OPENAI_BASE_URL="https://api.openai.com"; $env:OPENAI_API_KEY="sk-your-real-key"; $env:OPENAI_CHAT_MODEL="gpt-4o-mini"; $env:OPENAI_EMBEDDING_MODEL="text-embedding-3-small"; $env:SERPER_API_KEY="your-serper-key-here"
+```
+
+After either paste: `Ctrl+C` to stop the running app, `y` to confirm, then
+`mvn spring-boot:run` again. Watch for `[RAG] Ingested...` in the logs — that's your
+signal it's back up and using the new provider.
+
+**Note the Ollama base URL has no `/v1`** — that was a bug we fixed earlier; double-check
+you're not pasting an older version from elsewhere.
+
+**Suggested split, to stay inside 30 minutes:** run only #1 (simple chat) and #2
+(in-memory recall) on Ollama — enough to say "this runs free and local too" — then
+switch to OpenAI *before* #3 onward. Save tool chaining, RAG, and the failure case for
+OpenAI, where they're proven reliable. Don't repeat the full six-endpoint sequence on
+both providers; that's the fastest way to burn your time budget and risk a live
+stumble on the parts that matter most.
+
+---
+
 ## 0. Frame it (2 min) — say this, don't read it
 
 > "I've built a working Spring AI app covering the full list — chatbot, both memory
