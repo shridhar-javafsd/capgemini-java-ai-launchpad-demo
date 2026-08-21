@@ -70,7 +70,7 @@ curl.exe http://localhost:11434/v1/models
 ### 1.2 Set your env vars
 
 ```powershell
-$env:OPENAI_BASE_URL="http://localhost:11434/v1"
+$env:OPENAI_BASE_URL="http://localhost:11434"
 $env:OPENAI_API_KEY="ollama"
 $env:OPENAI_CHAT_MODEL="llama3.2"
 $env:OPENAI_EMBEDDING_MODEL="nomic-embed-text"
@@ -149,7 +149,8 @@ curl.exe -G localhost:8080/api/chat/simple --data-urlencode "message=What is dep
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
   --data-urlencode "conversationId=sonu" `
   --data-urlencode "message=My name is Sonu."
-
+```
+```powershell
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
   --data-urlencode "conversationId=sonu" `
   --data-urlencode "message=What's my name?"
@@ -241,9 +242,12 @@ mvn spring-boot:run -Dspring-boot.run.arguments=--server.port=8081
 | Provider | `OPENAI_BASE_URL` | Why |
 |---|---|---|
 | OpenAI | `https://api.openai.com` (**no** `/v1`) | client appends `/v1/...` itself |
-| Ollama | `http://localhost:11434/v1` (**with** `/v1`) | its compat layer expects `/v1` already in the base URL |
+| Ollama | `http://localhost:11434` (**no** `/v1`) | same client, same rule — it appends `/v1/...` regardless of host |
+| Groq | `https://api.groq.com/openai` (**no** `/v1`) | same rule again |
 
-Mix these up and you get a 404 that doesn't obviously explain itself.
+The pattern is simple once you see it: **never add `/v1` yourself, for any provider** — the
+app's OpenAI client always appends `/v1/chat/completions` (and `/v1/embeddings`) on its own. Add
+it yourself and you get a doubled path and a 404 that doesn't obviously explain itself.
 
 **Tool-call JSON leaking into the answer text** (e.g. seeing
 `{"name": "searchWeb", "parameters": {...}}` printed as plain chat instead of executed) — known
@@ -280,7 +284,7 @@ src/main/resources/
 
 ```
                           OPENAI_BASE_URL              OPENAI_API_KEY  CHAT_MODEL     EMBEDDING_MODEL
-Ollama (local, free):     http://localhost:11434/v1    ollama          llama3.2       nomic-embed-text
+Ollama (local, free):     http://localhost:11434       ollama          llama3.2       nomic-embed-text
 OpenAI (real, paid):      https://api.openai.com       sk-...          gpt-4o-mini    text-embedding-3-small
 ```
 
