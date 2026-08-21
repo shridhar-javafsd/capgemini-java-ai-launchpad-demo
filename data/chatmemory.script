@@ -29,7 +29,7 @@ SET FILES NIO TRUE
 SET FILES NIO SIZE 256
 SET FILES LOG TRUE
 SET FILES LOG SIZE 50
-SET FILES CHECK 60
+SET FILES CHECK 158
 SET DATABASE COLLATION "SQL_TEXT" PAD SPACE
 CREATE USER SA PASSWORD DIGEST 'd41d8cd98f00b204e9800998ecf8427e'
 ALTER USER SA SET LOCAL TRUE
@@ -49,3 +49,11 @@ INSERT INTO BLOCKS VALUES(0,2147483647,0)
 SET SCHEMA PUBLIC
 INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('bob','I work in the Sales department.','USER','2026-08-20 23:26:33.183000')
 INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('bob','You''re part of the Sales team. What can I assist you with today?','ASSISTANT','2026-08-20 23:26:33.184000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('monu','I work in the Sales department.','USER','2026-08-21 10:12:35.494000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('monu','How can I assist you today with your Sales department needs?','ASSISTANT','2026-08-21 10:12:35.495000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('monu','I work in the Sales department.','USER','2026-08-21 10:12:35.496000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('monu','How can I assist you with your Sales department-related inquiries or tasks?','ASSISTANT','2026-08-21 10:12:35.497000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('sonu','Is Sonu an employee?','USER','2026-08-21 13:13:50.212000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('sonu','I don''t have access to the employee database. Please check your Employee Management System for Sonu''s status.','ASSISTANT','2026-08-21 13:13:50.213000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('sonu','I work in the Sales department.','USER','2026-08-21 13:13:50.214000')
+INSERT INTO SPRING_AI_CHAT_MEMORY VALUES('sonu','Please provide Sonu''s last name or employee ID to check if they are an employee in the Sales department.','ASSISTANT','2026-08-21 13:13:50.215000')
