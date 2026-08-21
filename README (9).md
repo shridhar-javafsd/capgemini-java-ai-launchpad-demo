@@ -147,13 +147,13 @@ curl.exe -G localhost:8080/api/chat/simple --data-urlencode "message=What is dep
 ### 2️⃣ In-memory conversation — remembers you until restart
 ```powershell
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
-  --data-urlencode "conversationId=alice" `
-  --data-urlencode "message=My name is Alice."
+  --data-urlencode "conversationId=sonu" `
+  --data-urlencode "message=My name is Sonu."
 
 curl.exe -G localhost:8080/api/chat/memory/inmemory `
-  --data-urlencode "conversationId=alice" `
+  --data-urlencode "conversationId=sonu" `
   --data-urlencode "message=What's my name?"
-# -> should say Alice
+# -> should say Sonu
 ```
 Different `conversationId` = totally isolated conversation. That's single- and multi-user support
 from the same endpoint, for free.
@@ -161,7 +161,7 @@ from the same endpoint, for free.
 ### 3️⃣ JDBC-backed conversation — survives restarts
 ```powershell
 curl.exe -G localhost:8080/api/chat/memory/jdbc `
-  --data-urlencode "conversationId=bob" `
+  --data-urlencode "conversationId=monu" `
   --data-urlencode "message=I work in the Sales department."
 ```
 Restart the app, hit it again with the same `conversationId` — it still remembers, because it's
@@ -169,7 +169,7 @@ reading/writing an actual HSQLDB table instead of a JVM-memory map.
 
 Proof-of-persistence — reads raw stored history straight from the DB:
 ```powershell
-curl.exe -G localhost:8080/api/chat/memory/history --data-urlencode "conversationId=bob"
+curl.exe -G localhost:8080/api/chat/memory/history --data-urlencode "conversationId=monu"
 ```
 
 ### 4️⃣ Web search tool
